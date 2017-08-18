@@ -1,0 +1,174 @@
+---
+title: "Mushroom Dataset - Naive Bayes and Decision Tree Classifiers"
+author: "Rajiv"
+date: "26 July 2017"
+output: html_document
+---
+
+#Mushroom Dataset : Naive Bayes and Decision Tree Classifiers.
+
+In this exercise we are going to predict the two classes in V1 (p-poisonious,e-edible) variable in the Mushroom Dataset using the Naive Bayes and Decision Tree Classifiers.
+
+We split the dataset into training and the testing before running this code and they are stored in seperate files in the Git and imported into this program.
+
+The Mushroom dataset has 4869 observations and 23 variables. This is obtained from the UCI Machine learning Repository and for more detailed information on this dataset refer to <https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.names>
+
+**Loading the Mushroom Training & Test Datasets**
+
+Removing the first column from the imported datasets as it is an index column in the files.
+```{r ClearWorkspace}
+rm(list=ls())
+
+Mushroom_train <- read.csv("https://raw.githubusercontent.com/Rajiv2806/Assignment/master/Mushroom/Mushroom%20train.csv",header = T)
+Mushroom_train <- Mushroom_train[,2:24]
+
+Mushroom_test <- read.csv("https://raw.githubusercontent.com/Rajiv2806/Assignment/master/Mushroom/Mushroom%20test.csv",header = T)
+Mushroom_test <- Mushroom_test[,2:24]
+```
+
+A peep into the training and test datasets
+
+```{r}
+head(Mushroom_train,3)
+head(Mushroom_test,3)
+```
+
+
+Splitting the Explanatory (X) variables and the predictor(Y) variables of the training and test datasets.
+
+```{r CreatingVariablesets}
+X_train <- Mushroom_train[,2:23]
+Y_train <- Mushroom_train[,1]
+X_test <- Mushroom_test[,2:23]
+Y_test <- Mushroom_test[,1]
+
+training_rows <- nrow(X_train)
+testing_rows <- nrow(X_test)
+```
+
+# Naive Bayes Calssifier
+
+First we apply the Naive Bayes(NB) classifier on the training dataset and validating the accuracy on both the Training and Test datasets.
+
+The Lambda is called the Laplacian smoothing parameter that is used to remove the biased'ness in the results of NB Classifier. We run our NB Classifier on various values of Lambda, ranging from 0-50
+
+We predict the accuracy scores of training and testing sets on Various values of Lambda and build a dataframe of lambda values, accuracy on training and accuracy on testing.
+
+The below code will take around 5-6 min to execute.
+```{r NaiveBayes, message=FALSE, warning=FALSE}
+t1 = Sys.time()
+
+library(e1071)
+
+Training_Accuracy <- c()
+Testing_Accuracy <- c()
+
+for(i in 0:50){
+    
+    NB_Classifier <- naiveBayes(X_train,Y_train,laplace = i)
+    Training_Table <- as.data.frame(table(predict(NB_Classifier,X_train),Y_train))
+    Testing_Table <- as.data.frame(table(predict(NB_Classifier,X_test),Y_test))
+    Training_Accuracy[i+1] <- sum(Training_Table[Training_Table$Var1 == Training_Table$Y_train,]$Freq) / training_rows * 100
+    Testing_Accuracy[i+1] <- sum(Testing_Table[Testing_Table$Var1 == Testing_Table$Y_test,]$Freq) / testing_rows * 100
+
+    #FOR DEBUGGING    
+    #cat("Laplacian Value:", i ,"\n")
+    #cat("Training Accuracy:",Training_Accuracy[i+1],"% \n")
+    #cat("Testing Accuracy:",Testing_Accuracy[i+1],"% \n")
+            
+}
+
+NB_Table <- as.data.frame(cbind(0:50,Training_Accuracy,Testing_Accuracy))
+colnames(NB_Table) <- c("Laplacian_Smoothing","Training_Accuracy","Testing_Accuracy")
+
+head(NB_Table,5)
+
+Sys.time() - t1
+```
+
+
+If we plot the training and test accuracies of the dataset against various values of Lambda, we can see that the Accuracy of both the datasets is highest at the value where Lambda is 1 and constantly reducing from there on.
+
+So, the best value of Lambda, the smoothing parameter is 1 in this case.
+
+```{r plotingNBTestVsTrain, message=FALSE, warning=FALSE}
+library(ggplot2)
+
+ggplot(NB_Table, aes(Laplacian_Smoothing)) + 
+  geom_line(aes(y = Training_Accuracy, colour = "Training_Accuracy")) + 
+  geom_line(aes(y = Testing_Accuracy, colour = "Testing_Accuracy")) + ggtitle("Accuracy Graph of Naive Bayes \n \t \t \t Training Vs Test ") + xlab("Lambda") + ylab("Accuracy")
+```
+
+
+# Decision Tree Classifier
+
+In the below code chuck we are building a Decison tree classifier on Mushroom training dataset to predict the V1 (p-poison e-edible) variable. 
+
+The cp is the complexity parameter in the decision tree. Any split in the DT that does not decrease the overall lack of fit by a factor of cp is not attempted.The main role of this parameter is to save computing time by pruning off splits that are obviously not worthwhile. We change this parameter from 1-64 and verify for different levels of sizethreshold. 
+
+We later build a dataframe with the sizethreshold values of cp, accuracy of training and testing datasets on the Decision tree.
+
+
+```{r}
+t1 = Sys.time()
+
+library(rpart)
+
+Dt_TrainingAccuracy <- c()
+Dt_TestingAccuracy <- c()
+
+for (i in 1:64){
+    Dt_Classifier <- rpart(V1~.,data=Mushroom_train,parms=list(split=c("information","gini")),cp= i/100)
+    Dt_TrainingTable <- as.data.frame(table(predict(Dt_Classifier,X_train,type = "class"),Y_train))
+    Dt_TestingTable <- as.data.frame(table(predict(Dt_Classifier,X_test,type = "class"),Y_test))
+    Dt_TrainingAccuracy[i] <- sum(Dt_TrainingTable[Dt_TrainingTable$Var1 == Dt_TrainingTable$Y_train,]$Freq) / training_rows * 100
+    Dt_TestingAccuracy[i] <- sum(Dt_TestingTable[Dt_TestingTable$Var1 == Dt_TestingTable$Y_test,]$Freq) / testing_rows * 100
+}
+
+#if you want to see the Decision tree use the below command
+#plot(Dt_Classifier); text(Dt_Classifier,use.n = T)
+
+Dt_Table <- as.data.frame(cbind(1:64,Dt_TrainingAccuracy,Dt_TestingAccuracy))
+names(Dt_Table) <- c("SizeThreshold","Training_Accuracy","Testing_Accuracy")
+
+head(Dt_Table)
+```
+
+
+Plotting the accuracy scores of training and test datasets on different values of the cp, we get the below graph, which says that we have the best cp value at 1% and after that the accuracy is constant.
+
+```{r}
+ggplot(Dt_Table, aes(SizeThreshold)) + 
+geom_line(aes(y = Training_Accuracy, colour = "Training_Accuracy")) + 
+geom_line(aes(y = Testing_Accuracy, colour = "Testing_Accuracy")) + 
+ggtitle("Accuracy Graph of Decision Tree \n Training Vs Test ") + 
+xlab("Lambda") + ylab("Accuracy") + ylim(90,100)
+```
+
+If you want to explore more of the decision tree use the below commands.
+
+```{r}
+#summary(Dt_Classifier) 
+#plot(Dt_Classifier, uniform=TRUE,main="Classification Tree ")
+#text(Dt_Classifier, use.n=TRUE, all=TRUE, cex=.8)
+#printcp(Dt_Classifier)
+#plotcp(Dt_Classifier)
+```
+
+
+
+#Questions to answer
+
+Q1. What's the training accuracy for Naive Bayes classifier at lambda = 10?  
+Q2. What's the test accuracy for Naiva Bayes classifier at lamda = 30? 
+Q3. What's the training accuracy of decision tree classifier at SizeThreshold = 30? 
+Q4. What's the test accuracy of decision tree classifier at SizeThreshold = 10?
+
+
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+paste("training accuracy for Naive Bayes classifier at lambda = 10: ",filter(NB_Table,Laplacian_Smoothing==10)$Training_Accuracy)
+paste("test accuracy for Naiva Bayes classifier at lamda = 30: ",filter(NB_Table,Laplacian_Smoothing==30)$Testing_Accuracy)
+paste("training accuracy of decision tree classifier at SizeThreshold = 30: ",filter(Dt_Table,SizeThreshold==30)$Training_Accuracy)
+paste("test accuracy of decision tree classifier at SizeThreshold = 10: ",filter(Dt_Table,SizeThreshold==10)$Testing_Accuracy)
+```

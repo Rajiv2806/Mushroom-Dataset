@@ -1,0 +1,188 @@
+---
+title: "MUSHROOM Dataset - Information Gain "
+author: "Rajiv"
+date: "24 July 2017"
+output: html_document
+---
+
+#Calculating Purity Measures: Accuracy, Entropy, GiniIndex  
+
+In this exercise we are going to calculate the information gain of the Mushroom Dataset using the 3 measures Accuracy, Entropy and Gini Index.
+
+The Mushroom dataset has 4869 observations and 23 variables. This is obtained from the UCI Machine learning Repository and for more detailed information on this dataset refer to <https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.names>
+
+Information gain is used to choose the best feature in predicting our response categorical which will be used for classification in building up the decision trees.
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+
+
+**Loading the Mushroom dataset from Git Repository**
+
+```{r ClearWorkspace}
+rm(list=ls())
+Mushroom_train <- read.csv("https://raw.githubusercontent.com/Rajiv2806/Mushroom-Dataset/master/Mushroom%20train.csv",header = T)
+Mushroom_train <- Mushroom_train[,2:24]
+```
+
+Looking at the structure of the dataset.
+
+```{r}
+head(Mushroom_train,5)
+```
+
+
+# Accuracy 
+
+Below is the code to calculate the Accuracy of an feature based on the the dependant variable Y which is V1 in this case. 
+
+```{r CalculatingAccuracy}
+t1 = Sys.time()
+
+A1 <- c()
+for(i in 2:23){ 
+    A2 <- as.data.frame(table(Mushroom_train[,1],Mushroom_train[,i]))    
+    names(A2) <- c("var1","var2","Freq")
+    A3 <- unique(A2$var2)
+    A4 <- c()
+    A6 <- c()
+    for(j in 1:length(A3)){A4[j] <- max(A2[A2$var2 %in% A3[j],]$Freq)/sum(A2[A2$var2 %in% A3[j],]$Freq)}
+    for(k in 1:length(A3)){A6[k] <- (sum(A2[A2$var2 %in% A3[k],]$Freq)/nrow(Mushroom_train)) * A4[k]}
+    A1[i] <- sum(A6)}
+
+# As i values starts from 2 in A1 as per the above for loop, we remove the first value from A1
+A1 <- na.omit(A1)
+
+# Creating a Data frame of the variables and the accuracy scores
+A5 <- as.data.frame(cbind(names(Mushroom_train[,-c(1)]),A1))
+A5$A1 <- as.numeric(as.character(A5$A1))
+A5$A1 <- (A5$A1)*100
+
+#Renaming the same table above A5 to AccuracyTable ordered by the Descending values of their accuracy scores.
+# and renaming the columns
+AccuracyTable <- A5[order(-A5$A1),]
+names(AccuracyTable) <- c("Variable","AccuracyScore")
+
+head(AccuracyTable)
+tail(AccuracyTable)
+
+Sys.time() - t1
+
+rm(A1,A2,A3,A4,A5,A6,t1,i,j,k)
+```
+
+#Gini Index
+
+Gini Index is Claculated using below code for the Mushroom dataset. we can see that the GINI Index of V6. The order of the Accuracy scores and GINI Indexes of the features are almost the same.
+
+```{r CalculatingGiniIndex}
+t1 = Sys.time()
+
+G1 <- c()
+
+for(i in 2:23){ 
+    G2 <- as.data.frame(table(Mushroom_train[,1],Mushroom_train[,i]))    
+    names(G2) <- c("var1","var2","Freq")
+    G3 <- unique(G2$var2)
+    G7 <- unique(G2$var1)
+    G8 <- c()
+    G6 <- c()
+    for(j in 1:length(G3)){ 
+        G4 <- c()
+        for(p in 1:length(G7)){
+            G4[p] <- (G2[G2$var2 %in% G3[j],]$Freq[p]/sum(G2[G2$var2 %in% G3[j],]$Freq))^2
+        }
+            G8[j] <- sum(G4)
+    }
+    for(k in 1:length(G3)){
+        G6[k] <- (sum(G2[G2$var2 %in% G3[k],]$Freq)/nrow(Mushroom_train)) * G8[k] 
+    }        
+    G1[i] <- sum(G6)
+}
+
+G1 <- na.omit(G1)
+G5 <- as.data.frame(cbind(names(Mushroom_train[,-c(1)]),G1))
+G5$G1 <- as.numeric(as.character(G5$G1))
+G5$G1 <- (G5$G1) * 100
+
+GiniIndexTable <- G5[order(-G5$G1),]
+names(GiniIndexTable) <- c("Variable","GiniScore")
+
+head(GiniIndexTable)
+tail(GiniIndexTable)
+
+Sys.time() - t1
+
+rm(G1,G2,G3,G4,G5,G6,G7,G8,i,j,k,t1,p)
+```
+
+#Entropy
+
+Purity of a region is defined by 1-Entropy. we can see that the values with highest Entropy is the ones with lowest on the Accuracy and Gini Index.
+
+```{r CalculatingEntropy}
+t1 = Sys.time()
+
+E5 <- c()
+
+for(i in 2:23){ 
+    E1 <- as.data.frame(table(Mushroom_train[,1],Mushroom_train[,i]))
+    names(E1) <- c("Var1","Var2","Freq")
+    E2 <- unique(E1$Var2)
+    E3 <- c()
+    for(j in 1:length(E2)){ 
+        E3 <- E1[E1$Var2 %in% E2[j],]$Freq / sum(E1[E1$Var2 %in% E2[j],]$Freq) 
+        E3 <- -1 * E3 * log(E3,ifelse(length(E2) == 1,0,length(E2)))
+        E3[is.nan(E3)] <- 0
+        E4 <- sum(E3)
+     }
+    E5 <- c(E5,E4)
+}
+
+E6 <- names(Mushroom_train[,2:23])
+
+EntropyTable <- as.data.frame(cbind(E6,E5))
+names(EntropyTable) <- c("Variable","EntropyScore")
+EntropyTable$EntropyScore <- as.numeric(as.character(EntropyTable$EntropyScore))*100
+EntropyTable <- EntropyTable[order(-EntropyTable$EntropyScore),]
+
+head(EntropyTable,5)
+tail(EntropyTable,5)
+
+Sys.time() - t1
+rm(E1,E2,E3,E4,E5,E6,t1,i,j)
+```
+
+
+# Creatring a Combined DataFrame With all Metrics
+
+```{r FinalDF, message=FALSE, warning=FALSE}
+FinalDF <- merge(x = AccuracyTable,y = EntropyTable,by.x = c("Variable"),by.y = c("Variable"))
+FinalDF <- merge(x = FinalDF,y = GiniIndexTable,by.x = c("Variable"),by.y = c("Variable"))
+
+library(dplyr)
+FinalDF <- arrange(FinalDF,desc(AccuracyScore))
+
+head(FinalDF,5)
+```
+
+# Plot of Accuracy Vs 1-Entropy
+
+```{r}
+plot(FinalDF$AccuracyScore,1-FinalDF$EntropyScore)
+text(FinalDF$AccuracyScore,1-FinalDF$EntropyScore,FinalDF$Variable,cex=0.9,pos=1,col="red")
+```
+
+
+**Lets see which feature has the Highest Accuracy score, Highest Gini Index and Lowest Entropy score.**
+
+```{r, message=FALSE, warning=FALSE}
+paste0("Max Accuracy Score: ", FinalDF[FinalDF$AccuracyScore == max(FinalDF$AccuracyScore),]$Variable)
+
+paste0('Min Entropy Score: ')
+paste0(FinalDF[FinalDF$EntropyScore == min(FinalDF$EntropyScore),]$Variable)
+
+paste0("Max Gini Index Score: ")
+paste0(FinalDF[FinalDF$GiniScore == max(FinalDF$GiniScore),]$Variable)
+```
+
